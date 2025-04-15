@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RLE + Merged Compression & ECC Encryption Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        img { border: 1px solid #ccc; margin: 10px 0; }
+        .container { display: flex; flex-wrap: wrap; }
+        .box { margin-right: 20px; }
+        .ecc-box { background: #f9f9f9; border: 1px solid #ccc; padding: 10px; margin-top: 10px; }
+        .indicator { margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>RLE + Merged Compression & ECC Encryption Demo</h1>
+    <form method="POST" enctype="multipart/form-data">
+        <label>Select an Image:</label>
+        <input type="file" name="image_file" required><br><br>
+        <label>Compression Ratio (0-1, e.g. 0.25):</label>
+        <p>(This ratio is used to merge pixels by block averaging after RLE pre‑processing.)</p>
+        <input type="text" name="compression_ratio" placeholder="0.25"><br><br>
+        <input type="submit" value="Process">
+    </form>
+
+    {% if original_image_b64 %}
+    <hr>
+    <div class="container">
+        <div class="box">
+            <h2>Original Image</h2>
+            <img src="data:image/png;base64,{{ original_image_b64 }}" alt="Original Image" style="max-width:300px;">
+            <p><strong>Size:</strong> {{ orig_size }} bytes</p>
+            <p><strong>SHA-256:</strong> {{ orig_hash }}</p>
+        </div>
+        <div class="box">
+            <h2>Compressed Image (Merged)</h2>
+            <img src="data:image/png;base64,{{ compressed_image_b64 }}" alt="Compressed Image" style="max-width:300px;">
+            <p><strong>Size:</strong> {{ comp_size }} bytes</p>
+            <p><strong>Compression Ratio Input:</strong> {{ comp_ratio_input }}</p>
+            <p><strong>RLE Serialized Size:</strong> {{ rle_size }} bytes</p>
+            <p><strong>SHA-256 (Compressed):</strong> {{ comp_hash }}</p>
+        </div>
+        <div class="box">
+            <h2>Cipher Image</h2>
+            <img src="data:image/png;base64,{{ cipher_image_b64 }}" alt="Cipher Image" style="max-width:300px;">
+        </div>
+    </div>
+    <h2>Size Comparison Chart</h2>
+    <img src="data:image/png;base64,{{ chart_base64 }}" alt="Chart" style="max-width:500px;">
+    
+    <h2>Hash Comparison Indicator</h2>
+    <div class="indicator">
+        <img src="data:image/png;base64,{{ hash_indicator_b64 }}" alt="Hash Indicator">
+        <p>{{ hash_match_text }}</p>
+    </div>
+    
+    <h2>ECC Curve & Encryption Data</h2>
+    <div class="ecc-box">
+        {{ ecc_info | safe }}
+    </div>
+    
+    <h2>Download Files</h2>
+    <ul>
+        <li>
+            <a href="data:image/png;base64,{{ cipher_image_b64 }}" download="cipher_image.png">
+                Download Cipher Image
+            </a>
+        </li>
+        <li>
+            <a href="data:image/png;base64,{{ compressed_image_b64 }}" download="compressed_image.png">
+                Download Compressed Image
+            </a>
+        </li>
+        <li>
+            <a href="data:text/plain;base64,{{ ecc_data_b64 }}" download="ecc_data.json">
+                Download ECC Data (JSON)
+            </a>
+        </li>
+    </ul>
+    {% endif %}
+</body>
+</html>

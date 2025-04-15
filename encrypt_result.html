@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Encrypted Image</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+  <style> body { padding-top: 30px; } </style>
+</head>
+<body>
+<div class="container">
+  <h2 class="text-center mb-4">Step 2 Result: Encrypted Image</h2>
+  <div class="text-center">
+    <img src="data:image/png;base64,{{ encrypted_preview }}" class="img-fluid mb-3" style="max-width:600px;">
+    <h5>ECC Key Information (Curve: {{ key_info.curve }})</h5>
+    <p><strong>Private Key:</strong> {{ key_info.private_key }}</p>
+    <p><strong>Public Key:</strong> ({{ key_info.public_key[0] }}, {{ key_info.public_key[1] }})</p>
+    <p><strong>Generator:</strong> ({{ key_info.generator[0] }}, {{ key_info.generator[1] }})</p>
+    <p><strong>Modulus:</strong> {{ key_info.modulus }}</p>
+    <p><strong>Checksum:</strong> {{ key_info.checksum }}</p>
+    <p><strong>Used kG (Public Y):</strong> {{ key_info.public_key[1] }}</p>
+  </div>
+  <div class="text-center mb-3">
+    <form method="POST" action="{{ url_for('download_encrypted') }}">
+      <input type="hidden" name="encrypted_filename" value="{{ encrypted_filename }}">
+      <button type="submit" class="btn btn-success">Download Encrypted File</button>
+    </form>
+  </div>
+  <hr>
+  <h3 class="text-center mb-3">Proceed to Decryption</h3>
+  <form method="POST" action="{{ url_for('decrypt_image') }}">
+    <input type="hidden" name="encrypted_filename" value="{{ encrypted_filename }}">
+    <input type="hidden" name="key_info_encoded" value="{{ key_info_encoded }}">
+    <input type="hidden" name="orig_length" value="{{ orig_length }}">
+    <input type="hidden" name="img_shape" value="{{ img_shape }}">
+    <input type="hidden" name="processed_data" value="{{ processed_data }}">
+    <input type="hidden" name="raw_hash" value="{{ raw_hash }}">
+    <input type="hidden" name="processing_option" value="{{ processing_option }}">
+    <div class="text-center">
+      <button type="submit" class="btn btn-warning">Decrypt Image</button>
+    </div>
+  </form>
+</div>
+</body>
+</html>
