@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SecureMed Research UI</title>
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet">
+  <style>
+    body { background: #f8f9fa; }
+    .card-header { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="container py-5">
+    <h1 class="text-center mb-4">
+      🔒 SecureMed Image Encryption &amp; Decryption
+    </h1>
+
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% if msgs %}
+        {% for cat,msg in msgs %}
+          <div class="alert alert-{{cat}} alert-dismissible fade show">
+            {{msg}}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="row">
+      <!-- Encrypt Form -->
+      <div class="col-md-6 mb-4">
+        <div class="card shadow">
+          <div class="card-header bg-primary text-white">Encrypt &amp; Compress</div>
+          <div class="card-body">
+            <form action="{{ url_for('encrypt') }}" method="post" enctype="multipart/form-data">
+              <div class="mb-3">
+                <label class="form-label">Select Image</label>
+                <input type="file" name="image_file" class="form-control" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Compression Ratio (0–1)</label>
+                <input type="number" name="compression_ratio" step="0.01" min="0" max="1"
+                       class="form-control" placeholder="e.g. 0.5" required>
+              </div>
+              <button class="btn btn-primary w-100">Run Encryption</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Decrypt Form -->
+      <div class="col-md-6 mb-4">
+        <div class="card shadow">
+          <div class="card-header bg-success text-white">Decrypt</div>
+          <div class="card-body">
+            <form action="{{ url_for('decrypt') }}" method="post" enctype="multipart/form-data">
+              <div class="mb-3">
+                <label class="form-label">Cipher Image</label>
+                <input type="file" name="cipher_file" class="form-control" required>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">ECC JSON</label>
+                <input type="file" name="ecc_file" class="form-control" required>
+              </div>
+              <button class="btn btn-success w-100">Run Decryption</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if show_encrypt %}
+      <hr>
+      <h2 class="mb-3">🔐 Encryption Results</h2>
+
+      <!-- Images -->
+      <div class="row text-center mb-4">
+        <div class="col">
+          <strong>Original</strong><br>
+          <img src="data:image/png;base64,{{ original_image_b64 }}" class="img-fluid border">
+        </div>
+        <div class="col">
+          <strong>Compressed</strong><br>
+          <img src="data:image/png;base64,{{ compressed_image_b64 }}" class="img-fluid border">
+        </div>
+        <div class="col">
+          <strong>Cipher</strong><br>
+          <img src="data:image/png;base64,{{ cipher_image_b64 }}" class="img-fluid border">
+        </div>
+      </div>
+
+      <!-- Compression SHA-256 -->
+      <h4>Compression Verification Hash</h4>
+      <p><strong>Compressed SHA‑256:</strong> {{ ecc_params.compressed_sha256 }}</p>
+
+      <!-- Histograms -->
+      <div class="row mb-4">
+        <div class="col-md-4">
+          <h5>Original Histogram</h5>
+          <img src="data:image/png;base64,{{ hist_orig_b64 }}" class="img-fluid border">
+        </div>
+        <div class="col-md-4">
+          <h5>Compressed Histogram</h5>
+          <img src="data:image/png;base64,{{ hist_comp_b64 }}" class="img-fluid border">
+        </div>
+        <div class="col-md-4">
+          <h5>Cipher Histogram</h5>
+          <img src="data:image/png;base64,{{ hist_cipher_b64 }}" class="img-fluid border">
+        </div>
+      </div>
+
+      <!-- Raw vs Charts -->
+      <div class="row mb-4">
+        <div class="col-md-4">
+          <h5>Raw vs RLE</h5>
+          <img src="data:image/png;base64,{{ chart_rle_b64 }}" class="img-fluid border">
+        </div>
+        <div class="col-md-4">
+          <h5>Raw vs LZMA</h5>
+          <img src="data:image/png;base64,{{ chart_lzma_b64 }}" class="img-fluid border">
+        </div>
+        <div class="col-md-4">
+          <h5>Raw vs Merged</h5>
+          <img src="data:image/png;base64,{{ chart_merge_b64 }}" class="img-fluid border">
+        </div>
+      </div>
+
+      <!-- Detailed Stats Table -->
+      <h4>Detailed Statistics</h4>
+      <table class="table table-striped mb-4">
+        <thead class="table-dark">
+          <tr><th>Metric</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Raw bytes</td><td>{{ orig_size }}</td></tr>
+          <tr><td>RLE bytes</td><td>{{ rle_size }}</td></tr>
+          <tr><td>LZMA bytes</td><td>{{ lzma_size }}</td></tr>
+          <tr><td>Final compressed bytes</td><td>{{ comp_size }}</td></tr>
+          <tr><td>Original pixels</td><td>{{ orig_px }}</td></tr>
+          <tr><td>After dedupe pixels</td><td>{{ dedup_px }}</td></tr>
+          <tr><td>After merge pixels</td><td>{{ merged_px }}</td></tr>
+          <tr><td>Pixels removed</td><td>{{ red_px }} ({{ red_pct }}%)</td></tr>
+        </tbody>
+      </table>
+
+      <!-- ECC Parameters -->
+      <h4>ECC Parameters</h4>
+      <ul class="list-group mb-4">
+        {% for k,v in ecc_params.items() %}
+          {% if v is mapping %}
+            {% for kk,vv in v.items() %}
+              <li class="list-group-item"><strong>{{ kk }}:</strong> {{ vv }}</li>
+            {% endfor %}
+          {% else %}
+            <li class="list-group-item"><strong>{{ k }}:</strong> {{ v }}</li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+
+      <!-- Downloads -->
+      <h4>Downloads</h4>
+      <a href="data:image/png;base64,{{ compressed_image_b64 }}"
+         download="compressed.png"
+         class="btn btn-outline-primary me-2 mb-2">
+        Compressed PNG
+      </a>
+      <a href="data:image/png;base64,{{ cipher_image_b64 }}"
+         download="cipher.png"
+         class="btn btn-outline-secondary me-2 mb-2">
+        Cipher PNG
+      </a>
+      <a href="data:application/json;base64,{{ ecc_data_b64 }}"
+         download="ecc_data.json"
+         class="btn btn-outline-success mb-2">
+        ECC JSON
+      </a>
+    {% endif %}
+
+    {% if show_decrypt %}
+      <hr>
+      <h2 class="mb-3">🔓 Decryption Results</h2>
+      <div class="text-center mb-3">
+        <img src="data:image/png;base64,{{ decrypted_image_b64 }}"
+             class="img-fluid border">
+      </div>
+
+      <h4>Checksum Verification</h4>
+      <p><strong>Pre‑encryption (compressed) SHA‑256:</strong> {{ comp_hash }}</p>
+      <p><strong>Post‑decryption SHA‑256:</strong> {{ decrypted_hash }}</p>
+      <p class="{% if hash_match %}text-success{% else %}text-danger{% endif %}">
+        {{ "✅ Hashes Match" if hash_match else "❌ Hashes Differ" }}
+      </p>
+
+      <a href="data:image/png;base64,{{ decrypted_image_b64 }}"
+         download="decrypted.png"
+         class="btn btn-outline-primary">
+        Download Decrypted PNG
+      </a>
+    {% endif %}
+  </div>
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js">
+  </script>
+</body>
+</html>
