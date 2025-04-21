@@ -16,12 +16,10 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-# ── Setup ────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "replace_with_secure_random")
 
-# ── Helpers ─────────────────────────────────────────────────────────────
 def compute_sha256(data_bytes):
     return hashlib.sha256(data_bytes).hexdigest()
 
@@ -89,7 +87,6 @@ def inverse_row_col_shift(arr):
         out[i] = np.roll(out[i], -s % c)
     return out
 
-# ECC (secp256k1)
 p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
 a, b = 0, 7
 Gx, Gy = (
@@ -135,7 +132,6 @@ def decrypt_image_pixels(arr, kG):
     plain = bytearray(b ^ random.getrandbits(8) for b in flat)
     return np.frombuffer(plain, dtype=np.uint8).reshape(unsh.shape)
 
-# Chart helpers
 def plot_histogram(arr, title):
     fig, ax = plt.subplots(figsize=(4,3))
     ax.hist(arr.flatten(), bins=256)
@@ -161,7 +157,6 @@ def plot_bar(vals, labels, title):
     plt.close(fig)
     return base64.b64encode(buf.getvalue()).decode()
 
-# ── Routes ──────────────────────────────────────────────────────────────
 
 @app.route('/', methods=['GET'])
 def index():
@@ -175,16 +170,13 @@ def encrypt():
         flash("Upload image & ratio", "warning")
         return redirect(url_for('index'))
 
-    # 1) Raw
+
     img = Image.open(f).convert('L')
     orig = np.array(img)
     orig_bytes = orig.tobytes()
     orig_size = len(orig_bytes)
     orig_px = orig.size
 
-    # 2) SHA of raw omitted – we compare compressed vs decrypted
-
-    # 3) Dedup + RLE + LZMA
     dedup = remove_duplicate_rows_and_cols(orig)
     rle_rows = rle_encode_image(dedup)
     rle_bytes = pickle.dumps(rle_rows)
@@ -192,7 +184,7 @@ def encrypt():
     lzma_bytes = lzma.compress(rle_bytes)
     lzma_size = len(lzma_bytes)
 
-    # 4) Merge
+  
     merged = merge_pixels(img, ratio)
     merged = remove_duplicate_rows_and_cols(merged)
     merged_px = merged.size
@@ -200,10 +192,9 @@ def encrypt():
     comp_size = len(comp_bytes)
     comp_hash = compute_sha256(comp_bytes)
 
-    # 5) Encrypt
+   
     cipher_arr, kG = encrypt_image_pixels(comp_bytes, merged.shape[0], merged.shape[1])
 
-    # 6) Charts & histograms
     hist_orig = plot_histogram(orig,   'Original Histogram')
     hist_comp = plot_histogram(merged,'Compressed Histogram')
     hist_cipher = plot_histogram(cipher_arr,'Cipher Histogram')
@@ -211,7 +202,7 @@ def encrypt():
     chart_lzma  = plot_bar([orig_size, lzma_size], ['Raw','LZMA'], 'Raw vs LZMA')
     chart_merge = plot_bar([orig_size, comp_size], ['Raw','Merged'], 'Raw vs Merged')
 
-    # 7) to_base64
+    
     def to_b64(a):
         b = io.BytesIO()
         Image.fromarray(a,'L').save(b,'PNG')
@@ -221,7 +212,7 @@ def encrypt():
     comp_b64   = to_b64(merged)
     cipher_b64 = to_b64(cipher_arr)
 
-    # 8) ECC JSON + params
+   
     ecc_json = {
         "curve_name": "secp256k1",
         "p": hex(p),
@@ -233,13 +224,12 @@ def encrypt():
     }
     ecc_b64 = base64.b64encode(json.dumps(ecc_json).encode()).decode()
 
-    # 9) Pixel reduction
+   
     red_px = orig_px - merged_px
     red_pct = round(100 * red_px / orig_px, 2)
 
     return render_template('index.html',
         show_encrypt=True,
-        # images & charts
         original_image_b64=orig_b64,
         compressed_image_b64=comp_b64,
         cipher_image_b64=cipher_b64,
@@ -249,12 +239,10 @@ def encrypt():
         chart_rle_b64=chart_rle,
         chart_lzma_b64=chart_lzma,
         chart_merge_b64=chart_merge,
-        # sizes & pixels
         orig_size=orig_size, rle_size=rle_size,
         lzma_size=lzma_size, comp_size=comp_size,
         orig_px=orig_px, dedup_px=dedup.size, merged_px=merged_px,
         red_px=red_px, red_pct=red_pct,
-        # ECC
         ecc_params=ecc_json,
         ecc_data_b64=ecc_b64
     )
